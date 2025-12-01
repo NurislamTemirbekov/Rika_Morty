@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
-import '../models/character.dart';
+import '../../domain/entities/character.dart';
 import '../providers/favorites_provider.dart';
 
 class CharacterCard extends StatefulWidget {

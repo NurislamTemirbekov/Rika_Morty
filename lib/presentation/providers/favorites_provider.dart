@@ -1,10 +1,14 @@
 import 'package:flutter/foundation.dart';
-import '../models/character.dart';
-import '../services/storage_service.dart';
+import '../../domain/entities/character.dart';
+import '../../domain/repositories/character_repository.dart';
+import '../../domain/repositories/favorite_repository.dart';
 
 enum SortType { name, status, species }
 
 class FavoritesProvider extends ChangeNotifier {
+  final FavoriteRepository favoriteRepository;
+  final CharacterRepository characterRepository;
+
   List<Character> _favorites = [];
   Set<int> _favoriteIds = {};
   SortType _sortType = SortType.name;
@@ -15,7 +19,10 @@ class FavoritesProvider extends ChangeNotifier {
   SortType get sortType => _sortType;
   bool get isAscending => _isAscending;
 
-  FavoritesProvider() {
+  FavoritesProvider({
+    required this.favoriteRepository,
+    required this.characterRepository,
+  }) {
     _init();
   }
 
@@ -25,8 +32,8 @@ class FavoritesProvider extends ChangeNotifier {
 
   Future<void> loadFavorites() async {
     try {
-      _favoriteIds = (await StorageService.getFavoriteIds()).toSet();
-      final allCharacters = await StorageService.getCharacters();
+      _favoriteIds = (await favoriteRepository.getFavoriteIds()).toSet();
+      final allCharacters = await characterRepository.getCachedCharacters();
       _favorites = allCharacters.where((c) => _favoriteIds.contains(c.id)).toList();
       notifyListeners();
     } catch (e) {
@@ -41,11 +48,11 @@ class FavoritesProvider extends ChangeNotifier {
   Future<void> toggleFavorite(Character character) async {
     try {
       if (_favoriteIds.contains(character.id)) {
-        await StorageService.removeFavorite(character.id);
+        await favoriteRepository.removeFavorite(character.id);
         _favoriteIds.remove(character.id);
         _favorites.removeWhere((c) => c.id == character.id);
       } else {
-        await StorageService.addFavorite(character.id);
+        await favoriteRepository.addFavorite(character.id);
         _favoriteIds.add(character.id);
         _favorites.add(character);
       }
@@ -57,7 +64,7 @@ class FavoritesProvider extends ChangeNotifier {
 
   Future<void> removeFavorite(int characterId) async {
     try {
-      await StorageService.removeFavorite(characterId);
+      await favoriteRepository.removeFavorite(characterId);
       _favoriteIds.remove(characterId);
       _favorites.removeWhere((c) => c.id == characterId);
       notifyListeners();
@@ -100,3 +107,4 @@ class FavoritesProvider extends ChangeNotifier {
     return sorted;
   }
 }
+

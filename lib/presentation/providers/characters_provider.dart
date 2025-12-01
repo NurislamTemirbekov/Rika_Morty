@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
-import '../models/character.dart';
-import '../services/api_service.dart';
-import '../services/storage_service.dart';
+import '../../domain/entities/character.dart';
+import '../../domain/repositories/character_repository.dart';
 
 enum LoadingState { initial, loading, loaded, error, loadingMore }
 
 class CharactersProvider extends ChangeNotifier {
+  final CharacterRepository repository;
+
   List<Character> _characters = [];
   LoadingState _state = LoadingState.initial;
   String? _errorMessage;
@@ -19,7 +20,7 @@ class CharactersProvider extends ChangeNotifier {
   bool get isLoading => _state == LoadingState.loading;
   bool get isLoadingMore => _state == LoadingState.loadingMore;
 
-  CharactersProvider() {
+  CharactersProvider(this.repository) {
     _init();
   }
 
@@ -32,7 +33,7 @@ class CharactersProvider extends ChangeNotifier {
 
   Future<void> _loadFromCache() async {
     try {
-      final cached = await StorageService.getCharacters();
+      final cached = await repository.getCachedCharacters();
       if (cached.isNotEmpty) {
         _characters = cached;
         _state = LoadingState.loaded;
@@ -55,18 +56,15 @@ class CharactersProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await ApiService.getCharacters(_currentPage);
-      final newCharacters = result['characters'] as List<Character>;
+      final newCharacters = await repository.getCharacters(_currentPage);
 
       if (refresh) {
         _characters = newCharacters;
-        await StorageService.clearCharacters();
       } else {
         _characters.addAll(newCharacters);
       }
 
-      await StorageService.saveCharacters(newCharacters);
-      _hasMore = result['hasNext'] as bool;
+      _hasMore = newCharacters.length == 20;
       _state = LoadingState.loaded;
     } catch (e) {
       _errorMessage = e.toString();
@@ -89,12 +87,9 @@ class CharactersProvider extends ChangeNotifier {
     _currentPage++;
 
     try {
-      final result = await ApiService.getCharacters(_currentPage);
-      final newCharacters = result['characters'] as List<Character>;
-
+      final newCharacters = await repository.getCharacters(_currentPage);
       _characters.addAll(newCharacters);
-      await StorageService.saveCharacters(newCharacters);
-      _hasMore = result['hasNext'] as bool;
+      _hasMore = newCharacters.length >= 20;
       _state = LoadingState.loaded;
     } catch (e) {
       _errorMessage = e.toString();
@@ -109,3 +104,4 @@ class CharactersProvider extends ChangeNotifier {
     await loadCharacters(refresh: true);
   }
 }
+
